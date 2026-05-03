@@ -1,0 +1,71 @@
+name: performance analysis (perf + valgrind)
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: bench_table_sum
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential linux-tools-common linux-tools-generic valgrind
+
+      - name: Enable perf access
+        run: |
+          sudo sysctl -w kernel.perf_event_paranoid=-1
+
+      - name: Build
+        run: |
+          make clean
+          make
+
+      - name: Run valgrind smoke checks
+        run: |
+          valgrind --error-exitcode=1 --leak-check=full ./build/sum_seq
+          sleep 2
+
+          valgrind --error-exitcode=1 --leak-check=full ./build/sum_stride
+          sleep 2
+
+          valgrind --error-exitcode=1 --leak-check=full ./build/sum_rand
+
+      - name: Run benchmarks with perf
+        run: |
+          mkdir -p perf-results
+
+          ./build/sum_seq
+          sleep 2
+          perf stat -o perf-results/sum_seq.txt ./build/sum_seq || true
+
+          sleep 3
+
+          ./build/sum_stride
+          sleep 2
+          perf stat -o perf-results/sum_stride.txt ./build/sum_stride || true
+
+          sleep 3
+
+          ./build/sum_rand
+          sleep 2
+          perf stat -o perf-results/sum_rand.txt ./build/sum_rand || true
+
+          echo "===== sum_seq ====="
+          cat perf-results/sum_seq.txt
+
+          echo "===== sum_stride ====="
+          cat perf-results/sum_stride.txt
+
+          echo "===== sum_rand ====="
+          cat perf-results/sum_rand.txt

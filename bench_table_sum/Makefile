@@ -19,7 +19,7 @@ run: all
 	for t in $(TARGETS); do echo "Running $$t"; ./$$t; done
 
 perf: all
-	for t in $(TARGETS); do echo "Perf $$t"; sudo perf stat ./$$t; done
+	for t in $(TARGETS); do echo "Perf $$t"; perf stat ./$$t || true; done
 
 clean:
 	rm -rf $(BUILD_DIR)
